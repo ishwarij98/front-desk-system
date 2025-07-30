@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { toast } from "react-hot-toast"; // ✅ Toasts
-import Modal from "./Modal"; // ✅ Reuse existing Modal component
-import { useTheme } from "../pages/_app";
+import toast from "react-hot-toast";
+import Modal from "./Modal";
 
 export default function Header() {
   const router = useRouter();
-  const { darkMode, setDarkMode } = useTheme();
-  const [showConfirm, setShowConfirm] = useState(false); // State for modal
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  // ✅ Logout handler with toast
   const handleLogout = () => {
     localStorage.removeItem("token");
     toast.success("✅ Logged out successfully!");
@@ -20,14 +17,6 @@ export default function Header() {
     <header className="flex justify-between items-center px-6 py-4 bg-gray-800">
       <h1 className="text-lg font-bold">Front Desk System</h1>
       <div className="flex gap-4 items-center">
-        {/* Dark/Light Toggle */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="px-3 py-1 rounded bg-gray-600 text-white"
-        >
-          {darkMode ? "☀ Light" : "🌙 Dark"}
-        </button>
-
         {/* Logout */}
         <button
           onClick={() => setShowConfirm(true)}

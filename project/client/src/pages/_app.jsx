@@ -1,24 +1,17 @@
-// src/pages/_app.jsx
-import { useEffect, useState, createContext, useContext } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout"; 
 import "../styles/globals.css";
 import { Toaster } from "react-hot-toast";
-
-const ThemeContext = createContext();
-export function useTheme() {
-  return useContext(ThemeContext);
-}
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const publicPages = ["/login", "/signup"];
   const isPublicPage = publicPages.includes(router.pathname);
 
-  const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Only run once on initial mount
+  // Initial auth check
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -31,11 +24,6 @@ export default function MyApp({ Component, pageProps }) {
     }
   }, [router.pathname]);
 
-  // ✅ Apply dark mode globally
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -45,7 +33,7 @@ export default function MyApp({ Component, pageProps }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ darkMode, setDarkMode }}>
+    <>
       <Toaster position="top-right" reverseOrder={false} />
       {isPublicPage ? (
         <Component {...pageProps} />
@@ -54,6 +42,6 @@ export default function MyApp({ Component, pageProps }) {
           <Component {...pageProps} />
         </Layout>
       )}
-    </ThemeContext.Provider>
+    </>
   );
 }
