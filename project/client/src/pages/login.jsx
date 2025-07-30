@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import toast from "react-hot-toast";
+import { jwtDecode } from "jwt-decode"; // ✅ Correct for E
+// ✅ Default import
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -9,31 +12,39 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-
-
   const handleLogin = async (e) => {
     e.preventDefault();
 
     if (!email || !password) {
-      alert("⚠️ Please fill all fields!");
+      toast.error("⚠️ Please fill all fields!");
       return;
     }
 
     try {
       setLoading(true);
-      // ✅ API request to backend
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
         { email, password }
       );
-      localStorage.setItem("token", res.data.token);
-      alert("✅ Login successful!");
+
+      const token = res.data.token;
+      localStorage.setItem("token", token);
+
+      // ✅ Decode token
+      const decoded = jwtDecode(token);
+      console.log("Decoded JWT:", decoded);
+
+      const userRole = (decoded?.role || "").toLowerCase();
+
+      toast.success(` Welcome back, ${userRole}!`);
+
+      // ✅ Redirect everyone to the main dashboard
       router.push("/dashboard");
     } catch (error) {
       console.error("Login error:", error);
-      alert(
+      toast.error(
         error?.response?.data?.message ||
-          "❌ Invalid credentials! Please try again."
+          " Invalid credentials! Please try again."
       );
     } finally {
       setLoading(false);

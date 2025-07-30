@@ -1,109 +1,105 @@
-'use client';
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import Modal from "./Modal";
 
 export default function AppointmentManagement() {
-  // State to hold list of appointments fetched from backend
   const [appointments, setAppointments] = useState([]);
-  // State to toggle modal visibility for scheduling new appointment
-  const [showModal, setShowModal] = useState(false);
-  // State to hold form values for new appointment
-  const [formData, setFormData] = useState({
+  const [showModal, setShowModal] = useState(false); // For scheduling modal
+  const [filter, setFilter] = useState("All"); // Filter state
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    appointmentId: null,
+  }); // Cancel confirmation
+
+  // New appointment form state
+  const [newAppointment, setNewAppointment] = useState({
     patientName: "",
     doctorId: "",
     appointmentDateTime: "",
     notes: "",
   });
-  // State for filtering and loading
-  const [filter, setFilter] = useState("All");
-  const [loading, setLoading] = useState(false);
 
-  // Function to get token from localStorage
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  };
-
-  /**
-   * Fetch all appointments from backend on component load
-   */
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/appointments`,
-        { headers: getAuthHeaders() }
-      );
-      setAppointments(res.data);
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
-      alert("❌ Failed to load appointments");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Handle new appointment submission
-   */
-  const handleAddAppointment = async () => {
-    const { patientName, doctorId, appointmentDateTime, notes } = formData;
-    if (!patientName || !doctorId || !appointmentDateTime) {
-      alert("⚠️ Please fill in all required fields");
-      return;
-    }
-
-    try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/appointments`,
-        { patientName, doctorId: parseInt(doctorId), appointmentDateTime, notes },
-        { headers: getAuthHeaders() }
-      );
-
-      alert("✅ Appointment scheduled!");
-      setShowModal(false);
-      setFormData({ patientName: "", doctorId: "", appointmentDateTime: "", notes: "" });
-      fetchAppointments(); // Refresh list
-    } catch (error) {
-      console.error("Error adding appointment:", error);
-      alert("❌ Failed to schedule appointment");
-    }
-  };
-
-  /**
-   * Handle appointment cancellation
-   */
-  const handleCancelAppointment = async (id) => {
-    if (!confirm("❌ Are you sure you want to cancel this appointment?")) return;
-
-    try {
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}/cancel`,
-        {},
-        { headers: getAuthHeaders() }
-      );
-
-      alert("⚠️ Appointment cancelled");
-      fetchAppointments();
-    } catch (error) {
-      console.error("Error cancelling appointment:", error);
-      alert("❌ Failed to cancel appointment");
-    }
-  };
-
-  /**
-   * Load appointments when component mounts
-   */
+  // ✅ Fetch appointments from backend on load
   useEffect(() => {
     fetchAppointments();
   }, []);
 
+  const fetchAppointments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/appointments`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setAppointments(res.data);
+    } catch (error) {
+      console.error("❌ Error fetching appointments:", error);
+    }
+  };
+
+  // ✅ Cancel appointment with confirmation
+  const handleCancelAppointment = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(
+        `${process.env.NEXT_PUBLIC_API_URL}/appointments/${confirmModal.appointmentId}/cancel`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Update state
+      setAppointments((prev) =>
+        prev.map((appt) =>
+          appt.id === confirmModal.appointmentId
+            ? { ...appt, status: "cancelled" }
+            : appt
+        )
+      );
+
+      // Close modal
+      setConfirmModal({ show: false, appointmentId: null });
+    } catch (error) {
+      console.error("❌ Error cancelling appointment:", error);
+    }
+  };
+
+  // ✅ Add new appointment
+  const handleAddAppointment = async () => {
+    if (
+      !newAppointment.patientName ||
+      !newAppointment.doctorId ||
+      !newAppointment.appointmentDateTime
+    ) {
+      alert("⚠️ Please fill all required fields!");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/appointments`,
+        newAppointment,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setAppointments((prev) => [...prev, res.data]);
+      setShowModal(false);
+      setNewAppointment({
+        patientName: "",
+        doctorId: "",
+        appointmentDateTime: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("❌ Error adding appointment:", error);
+    }
+  };
+
   return (
     <div>
-      {/* Filters & search */}
+      {/* Filter dropdown */}
       <div className="flex justify-between mb-4">
         <div className="flex items-center space-x-2">
           <span className="font-semibold">Filter:</span>
@@ -114,59 +110,68 @@ export default function AppointmentManagement() {
           >
             <option>All</option>
             <option>booked</option>
-            <option>completed</option>
             <option>cancelled</option>
           </select>
         </div>
       </div>
 
-      {/* Appointment List */}
-      {loading ? (
-        <p className="text-center">⏳ Loading appointments...</p>
-      ) : (
-        <div className="space-y-2">
-          {appointments
-            .filter((app) => filter === "All" || app.status === filter)
-            .map((app) => (
-              <div
-                key={app.id}
-                className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg"
-              >
-                <div>
-                  <h3 className="font-bold">{app.patientName}</h3>
-                  <p className="text-sm text-gray-400">👨‍⚕️ Doctor ID: {app.doctorId}</p>
-                  <p className="text-sm text-gray-400">⏰ {app.appointmentDateTime}</p>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      app.status === "booked"
-                        ? "bg-blue-200 text-blue-800"
-                        : app.status === "completed"
-                        ? "bg-green-200 text-green-800"
-                        : "bg-red-200 text-red-800"
-                    }`}
-                  >
-                    {app.status}
-                  </span>
-
-                  {/* Cancel button */}
-                  {app.status === "booked" && (
-                    <button
-                      onClick={() => handleCancelAppointment(app.id)}
-                      className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
+      {/* Appointment list */}
+      <div className="space-y-2">
+        {appointments
+          .filter((appt) =>
+            filter === "All"
+              ? true
+              : appt.status.toLowerCase() === filter.toLowerCase()
+          )
+          .map((appt, index) => (
+            <div
+              key={appt.id}
+              className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg"
+            >
+              <div>
+                {/* Index number */}
+                <h3 className="font-bold flex items-center gap-2">
+                  <span className="text-white">{index + 1}</span>{" "}
+                  {appt.patientName}
+                </h3>
+                <p className="text-sm text-gray-400">Doctor ID: {appt.doctorId}</p>
+                <p className="text-sm text-gray-400">
+                  Time: {new Date(appt.appointmentDateTime).toLocaleString()}
+                </p>
+                {appt.notes && (
+                  <p className="text-sm text-gray-400">Notes: {appt.notes}</p>
+                )}
               </div>
-            ))}
-        </div>
-      )}
 
-      {/* Add Appointment Button */}
+              <div className="flex items-center gap-2">
+                {/* Status Badge */}
+                <span
+                  className={`px-2 py-1 rounded text-xs font-semibold capitalize ${
+                    appt.status === "cancelled"
+                      ? "bg-red-100 text-red-600 border border-red-400"
+                      : "bg-blue-100 text-blue-600 border border-blue-400"
+                  }`}
+                >
+                  {appt.status}
+                </span>
+
+                {/* Cancel Button (only show if NOT cancelled) */}
+                {appt.status !== "cancelled" && (
+                  <button
+                    onClick={() =>
+                      setConfirmModal({ show: true, appointmentId: appt.id })
+                    }
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+
+      {/* Schedule New Appointment */}
       <button
         onClick={() => setShowModal(true)}
         className="w-full mt-4 bg-white text-black py-2 rounded font-semibold"
@@ -174,43 +179,93 @@ export default function AppointmentManagement() {
         Schedule New Appointment
       </button>
 
-      {/* Modal for scheduling new appointment */}
+      {/* Add Appointment Modal */}
       {showModal && (
-        <Modal title="Schedule New Appointment" onClose={() => setShowModal(false)}>
+        <Modal
+          title="Schedule New Appointment"
+          onClose={() => setShowModal(false)}
+        >
           <div className="space-y-3">
             <input
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
               placeholder="Patient Name"
-              value={formData.patientName}
-              onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
+              value={newAppointment.patientName}
+              onChange={(e) =>
+                setNewAppointment((prev) => ({
+                  ...prev,
+                  patientName: e.target.value,
+                }))
+              }
             />
-            <input
-              type="number"
+            <select
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
-              placeholder="Doctor ID"
-              value={formData.doctorId}
-              onChange={(e) => setFormData({ ...formData, doctorId: e.target.value })}
-            />
+              value={newAppointment.doctorId}
+              onChange={(e) =>
+                setNewAppointment((prev) => ({
+                  ...prev,
+                  doctorId: e.target.value,
+                }))
+              }
+            >
+              <option value="">Select Doctor</option>
+              <option value="1">Dr. Smith</option>
+              <option value="2">Dr. Johnson</option>
+            </select>
             <input
               type="datetime-local"
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
-              value={formData.appointmentDateTime}
+              value={newAppointment.appointmentDateTime}
               onChange={(e) =>
-                setFormData({ ...formData, appointmentDateTime: e.target.value })
+                setNewAppointment((prev) => ({
+                  ...prev,
+                  appointmentDateTime: e.target.value,
+                }))
               }
             />
             <input
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
               placeholder="Notes (optional)"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              value={newAppointment.notes}
+              onChange={(e) =>
+                setNewAppointment((prev) => ({
+                  ...prev,
+                  notes: e.target.value,
+                }))
+              }
             />
-
             <button
               onClick={handleAddAppointment}
               className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white w-full"
             >
               Save
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {confirmModal.show && (
+        <Modal
+          title="Cancel Appointment"
+          onClose={() => setConfirmModal({ show: false, appointmentId: null })}
+        >
+          <p className="mb-4 text-sm text-gray-300">
+            Are you sure you want to cancel this appointment?
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() =>
+                setConfirmModal({ show: false, appointmentId: null })
+              }
+              className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded text-white"
+            >
+              No
+            </button>
+            <button
+              onClick={handleCancelAppointment}
+              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white"
+            >
+              Yes, Cancel
             </button>
           </div>
         </Modal>

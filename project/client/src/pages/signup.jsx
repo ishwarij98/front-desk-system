@@ -1,38 +1,39 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import toast from "react-hot-toast"; // ✅ Toast notifications
 
 export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("staff"); // ✅ Default to staff
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
-
-
   const handleSignup = async (e) => {
     e.preventDefault();
 
-    if (!name || !email || !password) {
-      alert("⚠️ Please fill all fields!");
+    if (!name || !email || !password || !role) {
+      toast.error("⚠️ Please fill all fields!");
       return;
     }
 
     try {
       setLoading(true);
-      // ✅ API request to backend
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
         name,
         email,
         password,
+        role,
       });
-      alert("✅ Account created successfully!");
+
+      toast.success("✅ Account created successfully!");
       router.push("/login");
     } catch (error) {
       console.error("Signup error:", error);
-      alert(
+      toast.error(
         error?.response?.data?.message || "❌ Signup failed! Please try again."
       );
     } finally {
@@ -71,6 +72,19 @@ export default function SignupPage() {
           className="w-full px-3 py-2 bg-zinc-800 rounded"
           disabled={loading}
         />
+
+        {/* ✅ Role Dropdown */}
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full px-3 py-2 bg-zinc-800 rounded text-white"
+          disabled={loading}
+        >
+          <option value="admin">Admin</option>
+          <option value="doctor">Doctor</option>
+          <option value="staff">Receptionist</option>
+        </select>
+
         <button
           type="submit"
           disabled={loading}

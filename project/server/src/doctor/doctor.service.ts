@@ -6,38 +6,32 @@ import { Doctor } from './doctor.entity';
 @Injectable()
 export class DoctorService {
   constructor(
-    @InjectRepository(Doctor)
-    private doctorRepo: Repository<Doctor>,
+    @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
   ) {}
 
-  // Create a doctor
-  async create(doctorData: Partial<Doctor>): Promise<Doctor> {
-    const doctor = this.doctorRepo.create(doctorData);
-    return this.doctorRepo.save(doctor);
-  }
-
-  // List all doctors
-  async findAll(): Promise<Doctor[]> {
+  async findAll() {
     return this.doctorRepo.find();
   }
 
-  // Find a doctor by ID
-  async findOne(id: number): Promise<Doctor> {
+  async findOne(id: number) {
     const doctor = await this.doctorRepo.findOne({ where: { id } });
     if (!doctor) throw new NotFoundException('Doctor not found');
     return doctor;
   }
 
-  // Update a doctor
-  async update(id: number, updateData: Partial<Doctor>): Promise<Doctor> {
-    const doctor = await this.findOne(id);
-    Object.assign(doctor, updateData);
+  async create(data: Partial<Doctor>) {
+    const doctor = this.doctorRepo.create(data);
     return this.doctorRepo.save(doctor);
   }
 
-  // Delete a doctor
-  async remove(id: number): Promise<void> {
+  async update(id: number, data: Partial<Doctor>) {
     const doctor = await this.findOne(id);
-    await this.doctorRepo.remove(doctor);
+    Object.assign(doctor, data);
+    return this.doctorRepo.save(doctor);
+  }
+
+  async remove(id: number) {
+    const doctor = await this.findOne(id);
+    return this.doctorRepo.remove(doctor);
   }
 }

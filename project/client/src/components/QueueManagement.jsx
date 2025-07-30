@@ -5,6 +5,7 @@ import Modal from "./Modal";
 export default function QueueManagement() {
   const [queue, setQueue] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [filter, setFilter] = useState("All");
 
   const [newPatient, setNewPatient] = useState({
     patientName: "",
@@ -25,7 +26,6 @@ export default function QueueManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Sort so Urgent is always on top
       setQueue(sortByPriority(res.data));
     } catch (error) {
       console.error("❌ Error fetching queue:", error);
@@ -37,11 +37,11 @@ export default function QueueManagement() {
     return data.sort((a, b) => {
       if (a.priority === "Urgent" && b.priority !== "Urgent") return -1;
       if (b.priority === "Urgent" && a.priority !== "Urgent") return 1;
-      return new Date(a.createdAt) - new Date(b.createdAt); // fallback: order by arrival
+      return new Date(a.createdAt) - new Date(b.createdAt);
     });
   };
 
-  // Update patient (status/priority)
+  // Update patient (status or priority)
   const handleUpdatePatient = async (id, updateData) => {
     try {
       const token = localStorage.getItem("token");
@@ -53,7 +53,6 @@ export default function QueueManagement() {
         }
       );
 
-      // Use backend response + re-sort
       setQueue((prev) =>
         sortByPriority(prev.map((p) => (p.id === id ? res.data : p)))
       );
@@ -111,10 +110,15 @@ export default function QueueManagement() {
       <div className="flex justify-between mb-4">
         <div className="flex items-center space-x-2">
           <span className="font-semibold">Filter:</span>
-          <select className="bg-zinc-900 text-white rounded px-2 py-1">
+          <select
+            className="bg-zinc-900 text-white rounded px-2 py-1"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
             <option>All</option>
             <option>Waiting</option>
             <option>With Doctor</option>
+            <option>Done</option>
           </select>
         </div>
         <div className="flex">
@@ -129,57 +133,66 @@ export default function QueueManagement() {
 
       {/* Queue list */}
       <div className="space-y-2">
-        {queue.map((patient) => (
-          <div
-            key={patient.id}
-            className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg hover:bg-zinc-800 transition"
-          >
-            {/* Patient Info + Priority Indicator */}
-            <div>
-              <h3 className="font-bold flex items-center gap-2">
-                {patient.priority === "Urgent" ? "🔴" : "🟢"} {patient.patientName}
-              </h3>
-              <p className="text-sm text-gray-400">⏰ {patient.status}</p>
+        {queue
+          .filter((p) =>
+            filter === "All"
+              ? true
+              : p.status.toLowerCase() === filter.toLowerCase()
+          )
+          .map((patient, index) => (
+            <div
+              key={patient.id}
+              className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg hover:bg-zinc-800 transition"
+            >
+              {/* Index + Name */}
+              <div>
+                <h3 className="font-bold flex items-center gap-2">
+                  <span className="text-white">{index + 1}</span>
+                  {patient.priority === "Urgent" ? "🔴" : "🟢"}{" "}
+                  {patient.patientName}
+                </h3>
+                <p className="text-sm text-gray-400">⏰ {patient.status}</p>
+              </div>
+
+              {/* Reason & Doctor */}
+              <div className="text-sm">
+                <p>Reason: {patient.reason}</p>
+                <p>Doctor: {patient.doctorName || `ID: ${patient.doctorId}`}</p>
+              </div>
+
+              {/* Status */}
+              <select
+                className="bg-zinc-800 px-2 py-1 rounded text-sm"
+                value={patient.status}
+                onChange={(e) =>
+                  handleUpdatePatient(patient.id, { status: e.target.value })
+                }
+              >
+                <option value="waiting">Waiting</option>
+                <option value="with doctor">With Doctor</option>
+                <option value="done">Done</option>
+              </select>
+
+              {/* Priority */}
+              <select
+                className="bg-zinc-800 px-2 py-1 rounded text-sm"
+                value={patient.priority || "Normal"}
+                onChange={(e) =>
+                  handleUpdatePatient(patient.id, { priority: e.target.value })
+                }
+              >
+                <option value="Normal">Normal</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+
+              <button
+                onClick={() => deletePatient(patient.id)}
+                className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
+              >
+                ✖
+              </button>
             </div>
-
-            <div className="text-sm">
-              <p>Reason: {patient.reason}</p>
-              <p>Doctor: {patient.doctorName || `ID: ${patient.doctorId}`}</p>
-            </div>
-
-            {/* Status */}
-            <select
-              className="bg-zinc-800 px-2 py-1 rounded text-sm"
-              value={patient.status}
-              onChange={(e) =>
-                handleUpdatePatient(patient.id, { status: e.target.value })
-              }
-            >
-              <option value="waiting">Waiting</option>
-              <option value="with doctor">With Doctor</option>
-              <option value="done">Done</option>
-            </select>
-
-            {/* Priority */}
-            <select
-              className="bg-zinc-800 px-2 py-1 rounded text-sm"
-              value={patient.priority || "Normal"}
-              onChange={(e) =>
-                handleUpdatePatient(patient.id, { priority: e.target.value })
-              }
-            >
-              <option value="Normal">Normal</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-
-            <button
-              onClick={() => deletePatient(patient.id)}
-              className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
-            >
-              ✖
-            </button>
-          </div>
-        ))}
+          ))}
       </div>
 
       {/* Add Patient */}

@@ -10,6 +10,7 @@ import {
 import { UserService } from './user.service';
 import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UserRole } from './user.entity';
 
 @Controller('auth')
 export class UserController {
@@ -18,30 +19,42 @@ export class UserController {
     private readonly authService: AuthService,
   ) {}
 
-  // Signup endpoint: public
+  // ✅ Signup endpoint (public)
   @Post('signup')
-  async signUp(@Body() body: { email: string; password: string; name: string }) {
+  async signUp(
+    @Body()
+    body: {
+      email: string;
+      password: string;
+      name: string;
+      role?: UserRole; // Optional role
+    },
+  ) {
     // Check if email is already taken
     const existing = await this.userService.findByEmail(body.email);
     if (existing) {
       throw new BadRequestException('Email already exists');
     }
-    // Create new user and return it
-    return this.userService.signUp(body.email, body.password, body.name);
+
+    // Create user (defaults to STAFF if no role provided)
+    return this.userService.create(
+      body.email,
+      body.password,
+      body.name,
+      body.role || UserRole.STAFF,
+    );
   }
 
-  // Login endpoint: public
+  // ✅ Login endpoint (public)
   @Post('login')
   async login(@Body() body: { email: string; password: string }) {
-    // Return a JWT token if credentials are valid
     return this.authService.login(body.email, body.password);
   }
 
-  // Protected profile endpoint: only accessible with valid token
-  @UseGuards(JwtAuthGuard) // This applies the JWT guard
+  // ✅ Profile endpoint (protected)
+  @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req) {
-    // req.user comes from jwt.strategy.ts validate() method
-    return req.user;
+    return req.user; // Comes from jwt.strategy.ts validate()
   }
 }

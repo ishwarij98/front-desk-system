@@ -3,6 +3,7 @@ import { useEffect, useState, createContext, useContext } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout"; 
 import "../styles/globals.css";
+import { Toaster } from "react-hot-toast";
 
 const ThemeContext = createContext();
 export function useTheme() {
@@ -12,22 +13,25 @@ export function useTheme() {
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const publicPages = ["/login", "/signup"];
-  const [loading, setLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const isPublicPage = publicPages.includes(router.pathname);
 
-  // Handle authentication
+  const [darkMode, setDarkMode] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  // ✅ Only run once on initial mount
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token && !publicPages.includes(router.pathname)) {
+
+    if (!token && !isPublicPage) {
       router.replace("/login");
-    } else if (token && publicPages.includes(router.pathname)) {
+    } else if (token && isPublicPage) {
       router.replace("/dashboard");
     } else {
       setLoading(false);
     }
   }, [router.pathname]);
 
-  // Apply dark/light theme globally
+  // ✅ Apply dark mode globally
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
@@ -40,15 +44,11 @@ export default function MyApp({ Component, pageProps }) {
     );
   }
 
-  const isPublicPage = publicPages.includes(router.pathname);
-
   return (
     <ThemeContext.Provider value={{ darkMode, setDarkMode }}>
-      {/* Wrap every page in Layout (except public pages) */}
+      <Toaster position="top-right" reverseOrder={false} />
       {isPublicPage ? (
-        <div className="min-h-screen bg-background text-foreground">
-          <Component {...pageProps} />
-        </div>
+        <Component {...pageProps} />
       ) : (
         <Layout>
           <Component {...pageProps} />

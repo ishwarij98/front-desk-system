@@ -9,30 +9,29 @@ export class AppointmentService {
   constructor(
     @InjectRepository(Appointment)
     private appointmentRepo: Repository<Appointment>,
-    private queueService: QueueService, // ✅ inject QueueService to add patient automatically
+    private queueService: QueueService, // Inject QueueService to auto‑enqueue
   ) {}
 
   /**
-   * Create new appointment and add patient to Queue
+   * Create new appointment and enqueue patient
    */
   async create(data: Partial<Appointment>): Promise<Appointment> {
-    // 1️⃣ Create and save appointment
     const appointment = this.appointmentRepo.create(data);
-    const savedAppointment = await this.appointmentRepo.save(appointment);
+    const saved = await this.appointmentRepo.save(appointment);
 
-    // 2️⃣ Add to queue automatically
+    // Automatically add patient to queue
     await this.queueService.addPatient({
-      patientName: savedAppointment.patientName,
-      reason: savedAppointment.notes || 'Appointment',
-      doctorId: savedAppointment.doctorId,
-      status: 'waiting', // Default when booked
+      patientName: saved.patientName,
+      reason: saved.notes || 'Appointment',
+      doctorId: saved.doctorId,
+      status: 'waiting',
     });
 
-    return savedAppointment;
+    return saved;
   }
 
   /**
-   * List all appointments sorted by date/time
+   * Get all appointments, sorted by date/time
    */
   async findAll(): Promise<Appointment[]> {
     return this.appointmentRepo.find({
@@ -41,29 +40,48 @@ export class AppointmentService {
   }
 
   /**
-   * Find one appointment by id
+   * Get appointments for a specific doctor
+   */
+  async findByDoctor(doctorId: number): Promise<Appointment[]> {
+    return this.appointmentRepo.find({
+      where: { doctorId },
+      order: { appointmentDateTime: 'ASC' },
+    });
+  }
+
+  /**
+   * Get one appointment by ID (404 if not found)
    */
   async findOne(id: number): Promise<Appointment> {
-    const appointment = await this.appointmentRepo.findOne({ where: { id } });
-    if (!appointment) throw new NotFoundException('Appointment not found');
-    return appointment;
+    const appt = await this.appointmentRepo.findOne({ where: { id } });
+    if (!appt) throw new NotFoundException('Appointment not found');
+    return appt;
   }
 
   /**
-   * Update appointment details (reschedule, doctor change, notes, etc.)
+   * Update appointment fields (reschedule, notes, etc.)
    */
   async update(id: number, updateData: Partial<Appointment>): Promise<Appointment> {
-    const appointment = await this.findOne(id);
-    Object.assign(appointment, updateData);
-    return this.appointmentRepo.save(appointment);
+    const appt = await this.findOne(id);
+    Object.assign(appt, updateData);
+    return this.appointmentRepo.save(appt);
   }
 
   /**
-   * Cancel appointment (set status = 'cancelled')
+   * Soft‑cancel appointment (mark status = 'cancelled')
    */
   async cancel(id: number): Promise<Appointment> {
-    const appointment = await this.findOne(id);
-    appointment.status = 'cancelled';
-    return this.appointmentRepo.save(appointment);
+    const appt = await this.findOne(id);
+    appt.status = 'cancelled';
+    return this.appointmentRepo.save(appt);
+  }
+
+  /**
+   * Hard‑delete appointment (if you ever need it)
+   */
+  async remove(id: number): Promise<{ message: string }> {
+    const appt = await this.findOne(id);
+    await this.appointmentRepo.remove(appt);
+    return { message: 'Appointment deleted successfully' };
   }
 }

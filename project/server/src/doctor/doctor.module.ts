@@ -5,7 +5,7 @@ import { DoctorService } from './doctor.service';
 import { DoctorController } from './doctor.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Doctor])], // Enable TypeORM for Doctor entity
+  imports: [TypeOrmModule.forFeature([Doctor])],
   controllers: [DoctorController],
   providers: [DoctorService],
 })
