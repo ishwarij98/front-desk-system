@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* Enable dark mode via class in Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Root variables (default = light) */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Dark mode variables */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* Apply background and text colors globally */
+body {
+  @apply bg-[var(--background)] text-[var(--foreground)] font-sans;
+  margin: 0;
+  padding: 0;
+}
+
+/* Optional scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
