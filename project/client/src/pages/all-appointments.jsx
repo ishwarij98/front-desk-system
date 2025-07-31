@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Modal from "../components/Modal";
-import toast from "react-hot-toast";
+import { toast } from "react-hot-toast";
 
 export default function AllAppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
@@ -34,8 +34,14 @@ export default function AllAppointmentsPage() {
 
   // Filtered + searched list
   const visibleAppointments = appointments
-    .filter((appt) => (filterStatus === "All" ? true : appt.status === filterStatus.toLowerCase()))
-    .filter((appt) => appt.patientName.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter((appt) =>
+      filterStatus === "All"
+        ? true
+        : appt.status === filterStatus.toLowerCase()
+    )
+    .filter((appt) =>
+      appt.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Cancel appointment
   const handleConfirmCancel = async () => {
@@ -47,9 +53,13 @@ export default function AllAppointmentsPage() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a)));
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, status: "cancelled" } : a
+        )
+      );
       toast.success("Appointment cancelled");
-    } catch (err) {
+    } catch {
       toast.error("Failed to cancel");
     } finally {
       setConfirmModal({ show: false, appointmentId: null });
@@ -69,14 +79,12 @@ export default function AllAppointmentsPage() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      // Update local state
       setAppointments((prev) =>
         prev.map((a) => (a.id === appt.id ? appt : a))
       );
       toast.success("Appointment updated");
       setEditModal({ show: false, appointment: null });
-    } catch (err) {
+    } catch {
       toast.error("Failed to update appointment");
     }
   };
@@ -85,8 +93,9 @@ export default function AllAppointmentsPage() {
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-4">All Appointments</h1>
 
-      {/* Filters */}
+      {/* Filters & Search */}
       <div className="flex justify-between items-center mb-4">
+        {/* Status filter */}
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -98,7 +107,11 @@ export default function AllAppointmentsPage() {
           <option>Cancelled</option>
         </select>
 
-        <div className="flex">
+        {/* Search form */}
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className="flex"
+        >
           <input
             type="text"
             placeholder="Search patient..."
@@ -106,8 +119,13 @@ export default function AllAppointmentsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-zinc-900 text-white px-3 py-1 rounded-l"
           />
-          <button className="bg-white text-black px-3 rounded-r">🔍</button>
-        </div>
+          <button
+            type="submit"
+            className="bg-white text-black px-3 rounded-r"
+          >
+            🔍
+          </button>
+        </form>
       </div>
 
       {/* Table */}

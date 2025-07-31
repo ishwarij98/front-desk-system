@@ -6,6 +6,7 @@ export default function QueueManagement() {
   const [queue, setQueue] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");              // ← New
 
   const [newPatient, setNewPatient] = useState({
     patientName: "",
@@ -25,7 +26,6 @@ export default function QueueManagement() {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/queue`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setQueue(sortByPriority(res.data));
     } catch (error) {
       console.error("❌ Error fetching queue:", error);
@@ -33,13 +33,12 @@ export default function QueueManagement() {
   };
 
   // Utility: sort urgent patients first
-  const sortByPriority = (data) => {
-    return data.sort((a, b) => {
+  const sortByPriority = (data) =>
+    data.sort((a, b) => {
       if (a.priority === "Urgent" && b.priority !== "Urgent") return -1;
       if (b.priority === "Urgent" && a.priority !== "Urgent") return 1;
       return new Date(a.createdAt) - new Date(b.createdAt);
     });
-  };
 
   // Update patient (status or priority)
   const handleUpdatePatient = async (id, updateData) => {
@@ -48,11 +47,8 @@ export default function QueueManagement() {
       const res = await axios.patch(
         `${process.env.NEXT_PUBLIC_API_URL}/queue/${id}`,
         updateData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       setQueue((prev) =>
         sortByPriority(prev.map((p) => (p.id === id ? res.data : p)))
       );
@@ -86,11 +82,8 @@ export default function QueueManagement() {
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/queue`,
         newPatient,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       setQueue((prev) => sortByPriority([...prev, res.data]));
       setShowModal(false);
       setNewPatient({
@@ -99,14 +92,25 @@ export default function QueueManagement() {
         doctorId: "",
         priority: "Normal",
       });
+      setSearchTerm("");                                       // ← Clear search on add
+      setFilter("All");                                        // ← Clear filter on add
     } catch (error) {
       console.error("❌ Error adding patient:", error);
     }
   };
 
+  // Combined filter + search
+  const visibleQueue = queue
+    .filter((p) =>
+      filter === "All" ? true : p.status.toLowerCase() === filter.toLowerCase()
+    )
+    .filter((p) =>
+      p.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
   return (
     <div>
-      {/* Filter */}
+      {/* Filter & Search */}
       <div className="flex justify-between mb-4">
         <div className="flex items-center space-x-2">
           <span className="font-semibold">Filter:</span>
@@ -121,78 +125,80 @@ export default function QueueManagement() {
             <option>Done</option>
           </select>
         </div>
+
         <div className="flex">
           <input
             type="text"
-            placeholder="Search patients"
+            placeholder="Search patients..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-zinc-900 text-white rounded-l px-2 py-1"
           />
-          <button className="bg-white text-black px-3 rounded-r">🔍</button>
+          <button
+            onClick={() => {}}
+            className="bg-white text-black px-3 rounded-r"
+          >
+            🔍
+          </button>
         </div>
       </div>
 
       {/* Queue list */}
       <div className="space-y-2">
-        {queue
-          .filter((p) =>
-            filter === "All"
-              ? true
-              : p.status.toLowerCase() === filter.toLowerCase()
-          )
-          .map((patient, index) => (
-            <div
-              key={patient.id}
-              className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg hover:bg-zinc-800 transition"
-            >
-              {/* Index + Name */}
-              <div>
-                <h3 className="font-bold flex items-center gap-2">
-                  <span className="text-white">{index + 1}</span>
-                  {patient.priority === "Urgent" ? "🔴" : "🟢"}{" "}
-                  {patient.patientName}
-                </h3>
-                <p className="text-sm text-gray-400">⏰ {patient.status}</p>
-              </div>
-
-              {/* Reason & Doctor */}
-              <div className="text-sm">
-                <p>Reason: {patient.reason}</p>
-                <p>Doctor: {patient.doctorName || `ID: ${patient.doctorId}`}</p>
-              </div>
-
-              {/* Status */}
-              <select
-                className="bg-zinc-800 px-2 py-1 rounded text-sm"
-                value={patient.status}
-                onChange={(e) =>
-                  handleUpdatePatient(patient.id, { status: e.target.value })
-                }
-              >
-                <option value="waiting">Waiting</option>
-                <option value="with doctor">With Doctor</option>
-                <option value="done">Done</option>
-              </select>
-
-              {/* Priority */}
-              <select
-                className="bg-zinc-800 px-2 py-1 rounded text-sm"
-                value={patient.priority || "Normal"}
-                onChange={(e) =>
-                  handleUpdatePatient(patient.id, { priority: e.target.value })
-                }
-              >
-                <option value="Normal">Normal</option>
-                <option value="Urgent">Urgent</option>
-              </select>
-
-              <button
-                onClick={() => deletePatient(patient.id)}
-                className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
-              >
-                ✖
-              </button>
+        {visibleQueue.map((patient, index) => (
+          <div
+            key={patient.id}
+            className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg hover:bg-zinc-800 transition"
+          >
+            {/* Index + Name */}
+            <div>
+              <h3 className="font-bold flex items-center gap-2">
+                <span className="text-white">{index + 1}</span>
+                {patient.priority === "Urgent" ? "🔴" : "🟢"}{" "}
+                {patient.patientName}
+              </h3>
+              <p className="text-sm text-gray-400">⏰ {patient.status}</p>
             </div>
-          ))}
+
+            {/* Reason & Doctor */}
+            <div className="text-sm">
+              <p>Reason: {patient.reason}</p>
+              <p>Doctor: {patient.doctorName || `ID: ${patient.doctorId}`}</p>
+            </div>
+
+            {/* Status */}
+            <select
+              className="bg-zinc-800 px-2 py-1 rounded text-sm"
+              value={patient.status}
+              onChange={(e) =>
+                handleUpdatePatient(patient.id, { status: e.target.value })
+              }
+            >
+              <option value="waiting">Waiting</option>
+              <option value="with doctor">With Doctor</option>
+              <option value="done">Done</option>
+            </select>
+
+            {/* Priority */}
+            <select
+              className="bg-zinc-800 px-2 py-1 rounded text-sm"
+              value={patient.priority || "Normal"}
+              onChange={(e) =>
+                handleUpdatePatient(patient.id, { priority: e.target.value })
+              }
+            >
+              <option value="Normal">Normal</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+
+            <button
+              onClick={() => deletePatient(patient.id)}
+              className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
+            >
+              ✖
+            </button>
+          </div>
+        ))}
       </div>
 
       {/* Add Patient */}

@@ -1,20 +1,21 @@
+// src/pages/login.jsx
 import { useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { jwtDecode } from "jwt-decode"; // ✅ Correct for E
-// ✅ Default import
+import { jwtDecode } from "jwt-decode"; // default import
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
+  // fallback if env var missing
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     if (!email || !password) {
       toast.error("⚠️ Please fill all fields!");
       return;
@@ -23,29 +24,26 @@ export default function LoginPage() {
     try {
       setLoading(true);
       const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+        `${apiUrl}/auth/login`,
         { email, password }
       );
 
-      const token = res.data.token;
+      const { token } = res.data;
       localStorage.setItem("token", token);
 
-      // ✅ Decode token
-      const decoded = jwtDecode(token);
-      console.log("Decoded JWT:", decoded);
+      // decode your JWT so you can read the role
+      const { role } = jwtDecode(token);
+      const userRole = (role || "staff").toLowerCase();
+      toast.success(`✅ Welcome back, ${userRole}!`);
 
-      const userRole = (decoded?.role || "").toLowerCase();
-
-      toast.success(` Welcome back, ${userRole}!`);
-
-      // ✅ Redirect everyone to the main dashboard
+      // redirect however you like
       router.push("/dashboard");
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error(
-        error?.response?.data?.message ||
-          " Invalid credentials! Please try again."
-      );
+    } catch (err) {
+      console.error("Login error:", err);
+      const msg =
+        err.response?.data?.message ||
+        "❌ Login failed! Please try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

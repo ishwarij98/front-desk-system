@@ -12,7 +12,7 @@ export default function DoctorsPage() {
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // For Add/Edit Doctor modal
+  // Add/Edit Doctor modal state
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
   const [doctorForm, setDoctorForm] = useState({
@@ -23,7 +23,7 @@ export default function DoctorsPage() {
     availability: "",
   });
 
-  // For Schedule modal
+  // Schedule modal state
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [apptLoading, setApptLoading] = useState(false);
@@ -33,18 +33,16 @@ export default function DoctorsPage() {
     notes: "",
   });
 
-  // --- On mount: detect role + load doctors ---
+  // On mount: check role & load doctors
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-
     try {
       const { role } = jwtDecode(token);
       setIsAdmin(role === "admin");
     } catch {
       console.warn("Invalid token");
     }
-
     fetchDoctors();
   }, []);
 
@@ -66,7 +64,7 @@ export default function DoctorsPage() {
     }
   };
 
-  // --- Doctor CRUD (identical to before) ---
+  // --- Doctor CRUD ---
   const openAddDoctor = () => {
     setEditingDoctor(null);
     setDoctorForm({
@@ -78,6 +76,7 @@ export default function DoctorsPage() {
     });
     setShowDoctorModal(true);
   };
+
   const openEditDoctor = (doc) => {
     setEditingDoctor(doc);
     setDoctorForm({
@@ -89,6 +88,7 @@ export default function DoctorsPage() {
     });
     setShowDoctorModal(true);
   };
+
   const handleSaveDoctor = async () => {
     const token = localStorage.getItem("token");
     try {
@@ -112,6 +112,7 @@ export default function DoctorsPage() {
       alert("Failed to save doctor.");
     }
   };
+
   const handleDeleteDoctor = async (id) => {
     if (!confirm("Delete this doctor?")) return;
     const token = localStorage.getItem("token");
@@ -160,24 +161,14 @@ export default function DoctorsPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAppointments((prev) => [...prev, data]);
-      setNewAppointment({ appointmentDateTime: "", patientName: "", notes: "" });
+      setNewAppointment({
+        appointmentDateTime: "",
+        patientName: "",
+        notes: "",
+      });
     } catch (err) {
       console.error("❌ Error adding appointment:", err);
       alert("Failed to add appointment.");
-    }
-  };
-
-  const handleDeleteAppointment = async (id) => {
-    if (!confirm("Delete this appointment?")) return;
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAppointments((prev) => prev.filter((a) => a.id !== id));
-    } catch (err) {
-      console.error("❌ Error deleting appointment:", err);
-      alert("Failed to delete appointment.");
     }
   };
 
@@ -185,6 +176,7 @@ export default function DoctorsPage() {
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-4">Doctor Profiles</h1>
 
+      {/* Add Doctor Button (Admin only) */}
       {isAdmin && (
         <button
           onClick={openAddDoctor}
@@ -207,7 +199,9 @@ export default function DoctorsPage() {
                 className="flex items-center justify-between bg-zinc-900 p-4 rounded-lg"
               >
                 <div>
-                  <h3 className="font-bold text-lg">#{idx + 1} {doc.name}</h3>
+                  <h3 className="font-bold text-lg">
+                    #{idx + 1} {doc.name}
+                  </h3>
                   <p className="text-zinc-400">{doc.specialization}</p>
                   <p className="text-zinc-400 text-sm">
                     🧑‍⚕️ {doc.gender} 📍 {doc.location}
@@ -261,7 +255,9 @@ export default function DoctorsPage() {
               type="text"
               placeholder="Name"
               value={doctorForm.name}
-              onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
+              onChange={(e) =>
+                setDoctorForm({ ...doctorForm, name: e.target.value })
+              }
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
             />
             <input
@@ -269,13 +265,18 @@ export default function DoctorsPage() {
               placeholder="Specialization"
               value={doctorForm.specialization}
               onChange={(e) =>
-                setDoctorForm({ ...doctorForm, specialization: e.target.value })
+                setDoctorForm({
+                  ...doctorForm,
+                  specialization: e.target.value,
+                })
               }
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
             />
             <select
               value={doctorForm.gender}
-              onChange={(e) => setDoctorForm({ ...doctorForm, gender: e.target.value })}
+              onChange={(e) =>
+                setDoctorForm({ ...doctorForm, gender: e.target.value })
+              }
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
             >
               <option>Male</option>
@@ -293,7 +294,7 @@ export default function DoctorsPage() {
             />
             <input
               type="text"
-              placeholder="Availability (e.g. Mon-Fri 9‑5)"
+              placeholder="Availability (e.g. Mon-Fri 9-5)"
               value={doctorForm.availability}
               onChange={(e) =>
                 setDoctorForm({ ...doctorForm, availability: e.target.value })
@@ -316,7 +317,7 @@ export default function DoctorsPage() {
           title={`Schedule for ${selectedDoctor.name}`}
           onClose={() => setSelectedDoctor(null)}
         >
-          {/* Scrollable appointment list */}
+          {/* Appointment list */}
           <div className="max-h-[40vh] overflow-y-auto mb-4">
             {apptLoading ? (
               <p className="text-gray-400">Loading appointments…</p>
@@ -328,7 +329,6 @@ export default function DoctorsPage() {
                     <th className="py-2 px-3">Date & Time</th>
                     <th className="py-2 px-3">Patient</th>
                     <th className="py-2 px-3">Notes</th>
-                    <th className="py-2 px-3">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -343,14 +343,6 @@ export default function DoctorsPage() {
                       </td>
                       <td className="py-2 px-3">{appt.patientName}</td>
                       <td className="py-2 px-3">{appt.notes || "-"}</td>
-                      <td className="py-2 px-3">
-                        <button
-                          onClick={() => handleDeleteAppointment(appt.id)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
-                        >
-                          ❌
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -360,7 +352,7 @@ export default function DoctorsPage() {
             )}
           </div>
 
-          {/* Fixed form below */}
+          {/* Add Appointment form */}
           <div className="space-y-3">
             <input
               type="datetime-local"
@@ -378,7 +370,10 @@ export default function DoctorsPage() {
               placeholder="Patient Name"
               value={newAppointment.patientName}
               onChange={(e) =>
-                setNewAppointment((p) => ({ ...p, patientName: e.target.value }))
+                setNewAppointment((p) => ({
+                  ...p,
+                  patientName: e.target.value,
+                }))
               }
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
             />
