@@ -4,10 +4,12 @@ import Modal from "./Modal";
 
 export default function QueueManagement() {
   const [queue, setQueue] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState("All");
-  const [searchTerm, setSearchTerm] = useState("");              // ← New
+  const [searchTerm, setSearchTerm] = useState("");
 
+  // New patient form state
   const [newPatient, setNewPatient] = useState({
     patientName: "",
     reason: "",
@@ -15,24 +17,42 @@ export default function QueueManagement() {
     priority: "Normal",
   });
 
-  // Fetch queue from backend
   useEffect(() => {
+    fetchDoctors();
     fetchQueue();
   }, []);
+
+  const fetchDoctors = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/doctors`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDoctors(data);
+    } catch (err) {
+      console.error("❌ Error fetching doctors:", err);
+    }
+  };
+
+  const getDoctorName = (id) => {
+    const doctor = doctors.find((doc) => Number(doc.id) === Number(id));
+    return doctor ? doctor.name : `Doctor #${id}`;
+  };
 
   const fetchQueue = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/queue`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setQueue(sortByPriority(res.data));
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/queue`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setQueue(sortByPriority(data));
     } catch (error) {
       console.error("❌ Error fetching queue:", error);
     }
   };
 
-  // Utility: sort urgent patients first
   const sortByPriority = (data) =>
     data.sort((a, b) => {
       if (a.priority === "Urgent" && b.priority !== "Urgent") return -1;
@@ -40,26 +60,27 @@ export default function QueueManagement() {
       return new Date(a.createdAt) - new Date(b.createdAt);
     });
 
-  // Update patient (status or priority)
+  // Update patient status or priority in queue
   const handleUpdatePatient = async (id, updateData) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.patch(
+      const { data } = await axios.patch(
         `${process.env.NEXT_PUBLIC_API_URL}/queue/${id}`,
         updateData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setQueue((prev) =>
-        sortByPriority(prev.map((p) => (p.id === id ? res.data : p)))
+        sortByPriority(prev.map((p) => (p.id === id ? data : p)))
       );
     } catch (error) {
       console.error("❌ Error updating patient:", error);
     }
   };
 
-  // Delete patient
-  const deletePatient = async (id) => {
-    if (!confirm("Do you really want to remove this patient?")) return;
+  // Remove patient from queue
+  const handleDeletePatient = async (id) => {
+    if (!confirm("Do you really want to remove this patient from the queue?"))
+      return;
     try {
       const token = localStorage.getItem("token");
       await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/queue/${id}`, {
@@ -71,20 +92,33 @@ export default function QueueManagement() {
     }
   };
 
-  // Add patient
+  // Add patient (via Appointments API)
   const handleAddPatient = async () => {
-    if (!newPatient.patientName || !newPatient.reason || !newPatient.doctorId) {
-      alert("⚠️ Please fill all fields!");
+    if (
+      !newPatient.patientName ||
+      !newPatient.reason ||
+      !newPatient.doctorId
+    ) {
+      alert("⚠️ Please fill all required fields!");
       return;
     }
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/queue`,
-        newPatient,
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/appointments`,
+        {
+          patientName: newPatient.patientName,
+          doctorId: newPatient.doctorId,
+          appointmentDateTime: new Date().toISOString(), // now
+          notes: newPatient.reason,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setQueue((prev) => sortByPriority([...prev, res.data]));
+
+      // Refresh queue
+      fetchQueue();
+
+      // Reset modal/form
       setShowModal(false);
       setNewPatient({
         patientName: "",
@@ -92,14 +126,14 @@ export default function QueueManagement() {
         doctorId: "",
         priority: "Normal",
       });
-      setSearchTerm("");                                       // ← Clear search on add
-      setFilter("All");                                        // ← Clear filter on add
+      setSearchTerm("");
+      setFilter("All");
     } catch (error) {
       console.error("❌ Error adding patient:", error);
     }
   };
 
-  // Combined filter + search
+  // Visible Queue after filters/search
   const visibleQueue = queue
     .filter((p) =>
       filter === "All" ? true : p.status.toLowerCase() === filter.toLowerCase()
@@ -120,9 +154,9 @@ export default function QueueManagement() {
             onChange={(e) => setFilter(e.target.value)}
           >
             <option>All</option>
-            <option>Waiting</option>
-            <option>With Doctor</option>
-            <option>Done</option>
+            <option>waiting</option>
+            <option>with doctor</option>
+            <option>done</option>
           </select>
         </div>
 
@@ -134,71 +168,73 @@ export default function QueueManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-zinc-900 text-white rounded-l px-2 py-1"
           />
-          <button
-            onClick={() => {}}
-            className="bg-white text-black px-3 rounded-r"
-          >
-            🔍
-          </button>
+          <button className="bg-white text-black px-3 rounded-r">🔍</button>
         </div>
       </div>
 
       {/* Queue list */}
       <div className="space-y-2">
-        {visibleQueue.map((patient, index) => (
-          <div
-            key={patient.id}
-            className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg hover:bg-zinc-800 transition"
-          >
-            {/* Index + Name */}
-            <div>
-              <h3 className="font-bold flex items-center gap-2">
-                <span className="text-white">{index + 1}</span>
-                {patient.priority === "Urgent" ? "🔴" : "🟢"}{" "}
-                {patient.patientName}
-              </h3>
-              <p className="text-sm text-gray-400">⏰ {patient.status}</p>
+        {visibleQueue.length === 0 ? (
+          <p className="text-gray-400 text-center py-6">
+            No patients found in the queue.
+          </p>
+        ) : (
+          visibleQueue.map((patient, index) => (
+            <div
+              key={patient.id}
+              className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg hover:bg-zinc-800 transition"
+            >
+              {/* Index + Name */}
+              <div>
+                <h3 className="font-bold flex items-center gap-2">
+                  <span className="text-white">{index + 1}</span>
+                  {patient.priority === "Urgent" ? "🔴" : "🟢"}{" "}
+                  {patient.patientName}
+                </h3>
+                <p className="text-sm text-gray-400">⏰ {patient.status}</p>
+              </div>
+
+              {/* Reason & Doctor */}
+              <div className="text-sm">
+                <p>Reason: {patient.reason}</p>
+                <p>Doctor: {getDoctorName(patient.doctorId)}</p>
+              </div>
+
+              {/* Status */}
+              <select
+                className="bg-zinc-800 px-2 py-1 rounded text-sm"
+                value={patient.status}
+                onChange={(e) =>
+                  handleUpdatePatient(patient.id, { status: e.target.value })
+                }
+              >
+                <option value="waiting">Waiting</option>
+                <option value="with doctor">With Doctor</option>
+                <option value="done">Done</option>
+              </select>
+
+              {/* Priority */}
+              <select
+                className="bg-zinc-800 px-2 py-1 rounded text-sm"
+                value={patient.priority || "Normal"}
+                onChange={(e) =>
+                  handleUpdatePatient(patient.id, { priority: e.target.value })
+                }
+              >
+                <option value="Normal">Normal</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+
+              {/* Delete */}
+              <button
+                onClick={() => handleDeletePatient(patient.id)}
+                className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
+              >
+                ✖
+              </button>
             </div>
-
-            {/* Reason & Doctor */}
-            <div className="text-sm">
-              <p>Reason: {patient.reason}</p>
-              <p>Doctor: {patient.doctorName || `ID: ${patient.doctorId}`}</p>
-            </div>
-
-            {/* Status */}
-            <select
-              className="bg-zinc-800 px-2 py-1 rounded text-sm"
-              value={patient.status}
-              onChange={(e) =>
-                handleUpdatePatient(patient.id, { status: e.target.value })
-              }
-            >
-              <option value="waiting">Waiting</option>
-              <option value="with doctor">With Doctor</option>
-              <option value="done">Done</option>
-            </select>
-
-            {/* Priority */}
-            <select
-              className="bg-zinc-800 px-2 py-1 rounded text-sm"
-              value={patient.priority || "Normal"}
-              onChange={(e) =>
-                handleUpdatePatient(patient.id, { priority: e.target.value })
-              }
-            >
-              <option value="Normal">Normal</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-
-            <button
-              onClick={() => deletePatient(patient.id)}
-              className="bg-red-700 px-2 py-1 rounded text-white text-sm hover:bg-red-800"
-            >
-              ✖
-            </button>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Add Patient */}
@@ -229,10 +265,7 @@ export default function QueueManagement() {
               placeholder="Reason"
               value={newPatient.reason}
               onChange={(e) =>
-                setNewPatient((prev) => ({
-                  ...prev,
-                  reason: e.target.value,
-                }))
+                setNewPatient((prev) => ({ ...prev, reason: e.target.value }))
               }
             />
             <select
@@ -246,8 +279,11 @@ export default function QueueManagement() {
               }
             >
               <option value="">Select Doctor</option>
-              <option value="1">Dr. Smith</option>
-              <option value="2">Dr. Johnson</option>
+              {doctors.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  {doc.name}
+                </option>
+              ))}
             </select>
             <select
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"

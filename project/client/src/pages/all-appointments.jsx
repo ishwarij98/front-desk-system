@@ -6,38 +6,52 @@ import { toast } from "react-hot-toast";
 
 export default function AllAppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Confirm + Edit modal state
-  const [confirmModal, setConfirmModal] = useState({ show: false, appointmentId: null });
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    appointmentId: null,
+  });
   const [editModal, setEditModal] = useState({ show: false, appointment: null });
 
-  // Fetch all appointments
+  // Fetch all appointments & doctors
   useEffect(() => {
-    const fetchAppointments = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/appointments`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setAppointments(res.data);
+        const [appointmentsRes, doctorsRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/appointments`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/doctors`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        setAppointments(appointmentsRes.data);
+        setDoctors(doctorsRes.data);
       } catch (err) {
-        toast.error("Failed to load appointments");
+        toast.error("Failed to load data");
       } finally {
         setLoading(false);
       }
     };
-    fetchAppointments();
+    fetchData();
   }, []);
+
+  // Map doctorId → doctorName
+  const doctorNameMap = doctors.reduce((acc, doc) => {
+    acc[doc.id] = doc.name;
+    return acc;
+  }, {});
 
   // Filtered + searched list
   const visibleAppointments = appointments
     .filter((appt) =>
-      filterStatus === "All"
-        ? true
-        : appt.status === filterStatus.toLowerCase()
+      filterStatus === "All" ? true : appt.status === filterStatus.toLowerCase()
     )
     .filter((appt) =>
       appt.patientName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -54,9 +68,7 @@ export default function AllAppointmentsPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === id ? { ...a, status: "cancelled" } : a
-        )
+        prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
       );
       toast.success("Appointment cancelled");
     } catch {
@@ -93,9 +105,8 @@ export default function AllAppointmentsPage() {
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-4">All Appointments</h1>
 
-      {/* Filters & Search */}
+      {/* Filters & Search */}
       <div className="flex justify-between items-center mb-4">
-        {/* Status filter */}
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -107,11 +118,7 @@ export default function AllAppointmentsPage() {
           <option>Cancelled</option>
         </select>
 
-        {/* Search form */}
-        <form
-          onSubmit={(e) => e.preventDefault()}
-          className="flex"
-        >
+        <form onSubmit={(e) => e.preventDefault()} className="flex">
           <input
             type="text"
             placeholder="Search patient..."
@@ -135,7 +142,7 @@ export default function AllAppointmentsPage() {
             <tr className="text-zinc-400">
               <th className="py-2 px-4">#</th>
               <th className="py-2 px-4">Patient</th>
-              <th className="py-2 px-4">Doctor ID</th>
+              <th className="py-2 px-4">Doctor</th>
               <th className="py-2 px-4">Date & Time</th>
               <th className="py-2 px-4">Status</th>
               <th className="py-2 px-4">Actions</th>
@@ -162,7 +169,9 @@ export default function AllAppointmentsPage() {
                 >
                   <td className="py-2 px-4">{idx + 1}</td>
                   <td className="py-2 px-4">{appt.patientName}</td>
-                  <td className="py-2 px-4">{appt.doctorId}</td>
+                  <td className="py-2 px-4">
+                    {doctorNameMap[appt.doctorId] || `ID: ${appt.doctorId}`}
+                  </td>
                   <td className="py-2 px-4">
                     {new Date(appt.appointmentDateTime).toLocaleString()}
                   </td>
@@ -179,7 +188,10 @@ export default function AllAppointmentsPage() {
                     {appt.status !== "cancelled" && (
                       <button
                         onClick={() =>
-                          setConfirmModal({ show: true, appointmentId: appt.id })
+                          setConfirmModal({
+                            show: true,
+                            appointmentId: appt.id,
+                          })
                         }
                         className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
                       >
@@ -198,14 +210,18 @@ export default function AllAppointmentsPage() {
       {confirmModal.show && (
         <Modal
           title="Cancel Appointment"
-          onClose={() => setConfirmModal({ show: false, appointmentId: null })}
+          onClose={() =>
+            setConfirmModal({ show: false, appointmentId: null })
+          }
         >
           <p className="mb-4 text-gray-300">
             Are you sure you want to cancel this appointment?
           </p>
           <div className="flex justify-end space-x-2">
             <button
-              onClick={() => setConfirmModal({ show: false, appointmentId: null })}
+              onClick={() =>
+                setConfirmModal({ show: false, appointmentId: null })
+              }
               className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded text-white"
             >
               No
@@ -227,6 +243,7 @@ export default function AllAppointmentsPage() {
           onClose={() => setEditModal({ show: false, appointment: null })}
         >
           <div className="space-y-3">
+            {/* Date & Time */}
             <input
               type="datetime-local"
               value={editModal.appointment.appointmentDateTime.slice(0, 16)}
@@ -242,12 +259,16 @@ export default function AllAppointmentsPage() {
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"
             />
 
+            {/* Status */}
             <select
               value={editModal.appointment.status}
               onChange={(e) =>
                 setEditModal((prev) => ({
                   ...prev,
-                  appointment: { ...prev.appointment, status: e.target.value },
+                  appointment: {
+                    ...prev.appointment,
+                    status: e.target.value,
+                  },
                 }))
               }
               className="w-full px-2 py-1 rounded bg-zinc-800 text-white"

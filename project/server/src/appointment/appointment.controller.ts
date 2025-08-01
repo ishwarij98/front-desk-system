@@ -5,6 +5,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,          // 👈 import Delete
   Param,
   Body,
   Query,
@@ -19,58 +20,42 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class AppointmentController {
   constructor(private appointmentService: AppointmentService) {}
 
-  /**
-   * 1️⃣ Book a new appointment
-   * POST /appointments
-   * Body: { patientName, doctorId, appointmentDateTime, notes? }
-   */
+  /** 1️⃣ Book a new appointment */
   @Post()
   async create(@Body() body: any) {
     return this.appointmentService.create(body);
   }
 
-  /**
-   * 2️⃣ Get all appointments, optionally filtered by doctor
-   * GET /appointments?doctorId=2
-   */
+  /** 2️⃣ Get all appointments */
   @Get()
-  async findAll(
-    @Query('doctorId') doctorId?: string,
-  ) {
+  async findAll(@Query('doctorId') doctorId?: string) {
     if (doctorId) {
       return this.appointmentService.findByDoctor(+doctorId);
     }
     return this.appointmentService.findAll();
   }
 
-  /**
-   * 3️⃣ Get a single appointment
-   * GET /appointments/:id
-   */
+  /** 3️⃣ Get a single appointment */
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.appointmentService.findOne(id);
   }
 
-  /**
-   * 4️⃣ Update an appointment (reschedule, notes, status)
-   * PATCH /appointments/:id
-   * Body: { appointmentDateTime?, notes?, status? }
-   */
+  /** 4️⃣ Update an appointment */
   @Patch(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: any,
-  ) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
     return this.appointmentService.update(id, body);
   }
 
-  /**
-   * 5️⃣ Cancel (soft-delete) an appointment
-   * PATCH /appointments/:id/cancel
-   */
+  /** 5️⃣ Cancel (soft-delete) an appointment */
   @Patch(':id/cancel')
   async cancel(@Param('id', ParseIntPipe) id: number) {
     return this.appointmentService.cancel(id);
+  }
+
+  /** 6️⃣ Hard delete (remove completely from DB) */
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.appointmentService.remove(id);
   }
 }

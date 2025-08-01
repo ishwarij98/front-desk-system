@@ -42,12 +42,16 @@ export class AppointmentService {
   /**
    * Get appointments for a specific doctor
    */
-  async findByDoctor(doctorId: number): Promise<Appointment[]> {
-    return this.appointmentRepo.find({
-      where: { doctorId },
-      order: { appointmentDateTime: 'ASC' },
-    });
-  }
+  /**
+ * Get appointments for a specific doctor
+ */
+async findByDoctor(doctorId: number): Promise<Appointment[]> {
+  return this.appointmentRepo.find({
+    where: { doctorId, status: 'booked' },  //  Only show booked ones
+    order: { appointmentDateTime: 'ASC' },
+  });
+}
+
 
   /**
    * Get one appointment by ID (404 if not found)
@@ -84,4 +88,6 @@ export class AppointmentService {
     await this.appointmentRepo.remove(appt);
     return { message: 'Appointment deleted successfully' };
   }
+
+  
 }

@@ -1,4 +1,3 @@
-// src/pages/doctors.jsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -32,6 +31,15 @@ export default function DoctorsPage() {
     patientName: "",
     notes: "",
   });
+
+  // Auto refresh appointments every 5 sec when schedule modal is open
+  useEffect(() => {
+    let interval;
+    if (selectedDoctor) {
+      interval = setInterval(() => fetchAppointments(selectedDoctor.id), 5000);
+    }
+    return () => clearInterval(interval);
+  }, [selectedDoctor]);
 
   // On mount: check role & load doctors
   useEffect(() => {
@@ -136,7 +144,9 @@ export default function DoctorsPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/appointments?doctorId=${doctorId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setAppointments(data);
+
+      // Filter cancelled appointments (if backend not updated yet)
+      setAppointments(data.filter((appt) => appt.status !== "cancelled"));
     } catch (err) {
       console.error("❌ Error fetching appointments:", err);
       alert("Failed to load appointments.");
