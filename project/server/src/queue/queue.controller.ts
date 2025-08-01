@@ -12,7 +12,7 @@ import {
 import { QueueService } from './queue.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('queue')
+@Controller('/api/queue')
 @UseGuards(JwtAuthGuard) //  All endpoints require JWT token
 export class QueueController {
   constructor(private queueService: QueueService) {}

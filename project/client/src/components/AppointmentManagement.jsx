@@ -69,6 +69,7 @@ export default function AppointmentManagement({ refreshDoctorSchedule }) {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem("token");
+      console.log(process.env.NEXT_PUBLIC_API_URL,"ishwari check====>>>>");
       const res = await axios.get(
         `${process.env.NEXT_PUBLIC_API_URL}/appointments`,
         {

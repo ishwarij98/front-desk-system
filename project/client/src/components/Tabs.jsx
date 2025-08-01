@@ -8,7 +8,9 @@
  * @param {{ key: string; label: string }[]} tabs - Array of tabs to render.
  */
 export default function Tabs({ activeTab, setActiveTab, tabs }) {
+  console.log(tabs);
   return (
+    
     <div className="flex space-x-4 mb-4">
       {tabs.map((tab) => (
         <button

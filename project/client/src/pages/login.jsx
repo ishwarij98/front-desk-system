@@ -12,7 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   // fallback if env var missing
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const apiUrl = 'https://frontdesk.ishwari.online' 
+  console.log(apiUrl);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -39,7 +40,7 @@ export default function LoginPage() {
       // redirect however you like
       router.push("/dashboard");
     } catch (err) {
-      console.error("Login error:", err);
+      console.error("Login error:", err.res.data.message);
       const msg =
         err.response?.data?.message ||
         "❌ Login failed! Please try again.";

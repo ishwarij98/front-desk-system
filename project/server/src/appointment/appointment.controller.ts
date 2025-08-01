@@ -15,7 +15,7 @@ import {
 import { AppointmentService } from './appointment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('appointments')
+@Controller('/api/appointments')
 @UseGuards(JwtAuthGuard) // Protect all endpoints with JWT
 export class AppointmentController {
   constructor(private appointmentService: AppointmentService) {}

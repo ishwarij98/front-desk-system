@@ -15,6 +15,8 @@ async function bootstrap() {
   // Parse JSON and validate inputs
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
 
-  await app.listen(3000);
+  const port = 5001;
+  await app.listen(port);
+  console.log(`🚀 API running on http://localhost:${port}`);
 }
 bootstrap();
